@@ -28,6 +28,8 @@ class SnowflakeTableRetriever:
 
     ### Usage examples:
 
+    Components warm up automatically on first run.
+
     #### Password Authentication:
     ```python
     executor = SnowflakeTableRetriever(
@@ -39,7 +41,6 @@ class SnowflakeTableRetriever:
         db_schema="<SCHEMA-NAME>",
         warehouse="<WAREHOUSE-NAME>",
     )
-    executor.warm_up()
     ```
 
     #### Key-pair Authentication (MFA):
@@ -54,7 +55,6 @@ class SnowflakeTableRetriever:
         db_schema="<SCHEMA-NAME>",
         warehouse="<WAREHOUSE-NAME>",
     )
-    executor.warm_up()
     ```
 
     #### OAuth Authentication (MFA):
@@ -70,7 +70,6 @@ class SnowflakeTableRetriever:
         db_schema="<SCHEMA-NAME>",
         warehouse="<WAREHOUSE-NAME>",
     )
-    executor.warm_up()
     ```
 
     #### Running queries:
