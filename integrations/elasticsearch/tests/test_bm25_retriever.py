@@ -12,6 +12,11 @@ from haystack_integrations.components.retrievers.elasticsearch import Elasticsea
 from haystack_integrations.document_stores.elasticsearch import ElasticsearchDocumentStore
 
 
+def test_init_rejects_non_elasticsearch_document_store():
+    with pytest.raises(ValueError, match="document_store must be an instance of ElasticsearchDocumentStore"):
+        ElasticsearchBM25Retriever(document_store=Mock())
+
+
 def test_init_default():
     mock_store = Mock(spec=ElasticsearchDocumentStore)
     retriever = ElasticsearchBM25Retriever(document_store=mock_store)
