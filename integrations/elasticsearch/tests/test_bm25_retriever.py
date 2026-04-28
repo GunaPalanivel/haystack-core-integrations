@@ -57,6 +57,7 @@ def test_to_dict(_mock_elasticsearch_client):
                     "index": "default",
                     "embedding_similarity_function": "cosine",
                     "sparse_vector_field": None,
+                    "ingest_pipeline": None,
                 },
                 "type": "haystack_integrations.document_stores.elasticsearch.document_store.ElasticsearchDocumentStore",
             },
@@ -75,7 +76,12 @@ def test_from_dict(_mock_elasticsearch_client):
         "type": "haystack_integrations.components.retrievers.elasticsearch.bm25_retriever.ElasticsearchBM25Retriever",
         "init_parameters": {
             "document_store": {
-                "init_parameters": {"hosts": "some fake host", "index": "default", "sparse_vector_field": None},
+                "init_parameters": {
+                    "hosts": "some fake host",
+                    "index": "default",
+                    "sparse_vector_field": None,
+                    "ingest_pipeline": None,
+                },
                 "type": "haystack_integrations.document_stores.elasticsearch.document_store.ElasticsearchDocumentStore",
             },
             "filters": {},
@@ -100,7 +106,12 @@ def test_from_dict_no_filter_policy(_mock_elasticsearch_client):
         "type": "haystack_integrations.components.retrievers.elasticsearch.bm25_retriever.ElasticsearchBM25Retriever",
         "init_parameters": {
             "document_store": {
-                "init_parameters": {"hosts": "some fake host", "index": "default", "sparse_vector_field": None},
+                "init_parameters": {
+                    "hosts": "some fake host",
+                    "index": "default",
+                    "sparse_vector_field": None,
+                    "ingest_pipeline": None,
+                },
                 "type": "haystack_integrations.document_stores.elasticsearch.document_store.ElasticsearchDocumentStore",
             },
             "filters": {},

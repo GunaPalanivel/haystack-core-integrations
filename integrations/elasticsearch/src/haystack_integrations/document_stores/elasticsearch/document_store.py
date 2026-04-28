@@ -88,6 +88,7 @@ class ElasticsearchDocumentStore:
         api_key_id: Secret | str | None = Secret.from_env_var("ELASTIC_API_KEY_ID", strict=False),
         embedding_similarity_function: Literal["cosine", "dot_product", "l2_norm", "max_inner_product"] = "cosine",
         sparse_vector_field: str | None = None,
+        ingest_pipeline: str | None = None,
         **kwargs: Any,
     ) -> None:
         """
@@ -122,6 +123,11 @@ class ElasticsearchDocumentStore:
         :param sparse_vector_field: If set, the name of the Elasticsearch field where sparse embeddings
             will be stored using the `sparse_vector` field type. When not set, any `sparse_embedding`
             data on Documents is silently dropped during writes.
+        :param ingest_pipeline: If set, the id of an Elasticsearch ingest pipeline to run on each bulk
+            index or create (for example a pipeline with an inference processor). Leading and trailing
+            whitespace is stripped. When not set, the default Elasticsearch indexing path is used.
+            Ensure index mappings and pipeline output fields match any `embedding` or sparse fields
+            you send from Haystack.
         :param **kwargs: Optional arguments that `Elasticsearch` takes.
         """
         self._hosts = hosts
@@ -132,6 +138,14 @@ class ElasticsearchDocumentStore:
         self._api_key_id = api_key_id
         self._embedding_similarity_function = embedding_similarity_function
         self._sparse_vector_field = sparse_vector_field
+        if ingest_pipeline is not None:
+            stripped_pipeline = ingest_pipeline.strip()
+            if not stripped_pipeline:
+                msg = "ingest_pipeline must be a non-empty string when set."
+                raise ValueError(msg)
+            self._ingest_pipeline: str | None = stripped_pipeline
+        else:
+            self._ingest_pipeline = None
         self._custom_mapping = custom_mapping
         self._kwargs = kwargs
         self._initialized = False
@@ -295,6 +309,7 @@ class ElasticsearchDocumentStore:
             api_key_id=self._api_key_id.to_dict() if isinstance(self._api_key_id, Secret) else None,
             embedding_similarity_function=self._embedding_similarity_function,
             sparse_vector_field=self._sparse_vector_field,
+            ingest_pipeline=self._ingest_pipeline,
             **self._kwargs,
         )
 
@@ -632,14 +647,18 @@ class ElasticsearchDocumentStore:
                 }
             )
 
-        documents_written, errors = helpers.bulk(
-            client=self.client,
-            actions=elasticsearch_actions,
-            refresh=refresh,
-            index=self._index,
-            raise_on_error=False,
-            stats_only=False,
-        )
+        bulk_kwargs: dict[str, Any] = {
+            "client": self.client,
+            "actions": elasticsearch_actions,
+            "refresh": refresh,
+            "index": self._index,
+            "raise_on_error": False,
+            "stats_only": False,
+        }
+        if self._ingest_pipeline is not None:
+            bulk_kwargs["pipeline"] = self._ingest_pipeline
+
+        documents_written, errors = helpers.bulk(**bulk_kwargs)
 
         if errors:
             # with stats_only=False, errors is guaranteed to be a list of dicts
@@ -710,14 +729,18 @@ class ElasticsearchDocumentStore:
             }
             actions.append(action)
 
-        documents_written, errors = await helpers.async_bulk(
-            client=self.async_client,
-            actions=actions,
-            index=self._index,
-            refresh=refresh,
-            raise_on_error=False,
-            stats_only=False,
-        )
+        async_bulk_kwargs: dict[str, Any] = {
+            "client": self.async_client,
+            "actions": actions,
+            "index": self._index,
+            "refresh": refresh,
+            "raise_on_error": False,
+            "stats_only": False,
+        }
+        if self._ingest_pipeline is not None:
+            async_bulk_kwargs["pipeline"] = self._ingest_pipeline
+
+        documents_written, errors = await helpers.async_bulk(**async_bulk_kwargs)
 
         if errors:
             # with stats_only=False, errors is guaranteed to be a list of dicts
