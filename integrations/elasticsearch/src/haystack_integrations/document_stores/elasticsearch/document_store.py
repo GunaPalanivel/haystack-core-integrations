@@ -488,7 +488,8 @@ class ElasticsearchDocumentStore:
             # For documents indexed directly by Haystack the data is in _source as usual.
             fields_hit = hit.get("fields", {})
             if sparse_field in fields_hit:
-                es_sparse = fields_hit[sparse_field][0]  # fields API wraps values in a list
+                values = fields_hit[sparse_field]  # fields API wraps values in a list
+                es_sparse = values[0] if values else None
                 data.pop(sparse_field, None)
             else:
                 es_sparse = data.pop(sparse_field, None)

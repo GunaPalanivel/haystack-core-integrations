@@ -495,6 +495,19 @@ def test_deserialize_document_fields_api_takes_precedence_over_source():
     assert doc.sparse_embedding.values == [0.9, 0.7]
 
 
+def test_deserialize_document_fields_api_empty_list_does_not_crash():
+    # ES can return the field key with an empty list if the field is mapped but has no value.
+    store = ElasticsearchDocumentStore(hosts="testhost", sparse_vector_field="sparse_vec")
+    hit = {
+        "_source": {"id": "doc-1", "content": "Berlin"},
+        "_score": 1.0,
+        "fields": {"sparse_vec": []},
+    }
+    doc = store._deserialize_document(hit)
+    assert doc.content == "Berlin"
+    assert doc.sparse_embedding is None
+
+
 def test_sparse_vector_retrieval_builds_query_without_filters():
     store = ElasticsearchDocumentStore(hosts="some hosts", sparse_vector_field="sparse_vec")
 
