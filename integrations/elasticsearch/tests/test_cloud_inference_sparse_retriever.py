@@ -3,19 +3,22 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # Integration tests in TestElasticsearchInferenceSparseRetrieverIntegration connect to a managed
-# Elastic Cloud cluster. They are skipped automatically when the following environment variables
-# are absent:
+# Elastic Cloud cluster. They are skipped automatically when the required environment variables
+# are absent.
 #
-#   ELASTICSEARCH_URL          - cluster endpoint, e.g. https://my-cluster.es.io:443
-#   ELASTIC_API_KEY            - base64-encoded API key (id:secret)
-#   ELASTICSEARCH_INFERENCE_ID - deployed sparse inference endpoint,
-#                                e.g. ".elser-2-elasticsearch"
+# Required:
+#   ELASTICSEARCH_URL   - cluster endpoint, e.g. https://my-cluster.es.io:443
+#   ELASTIC_API_KEY     - base64-encoded API key (id:secret)
+#
+# Optional:
+#   ELASTICSEARCH_INFERENCE_ID - deployed sparse inference endpoint
+#                                (default: ".elser-2-elastic", Elastic's hosted ELSER service
+#                                which does not consume local ML node capacity)
 #
 # Example (bash):
 #   export ELASTICSEARCH_URL="https://my-cluster.es.io:443"
 #   export ELASTIC_API_KEY="<base64-id:secret>"
-#   export ELASTICSEARCH_INFERENCE_ID=".elser-2-elasticsearch"
-#   pytest -m integration tests/test_inference_sparse_retriever.py
+#   pytest -m integration tests/test_cloud_inference_sparse_retriever.py
 
 import uuid
 from unittest.mock import Mock, patch

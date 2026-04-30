@@ -7,26 +7,27 @@
 #
 # Required environment variables (tests are skipped automatically when absent):
 #
+#   For both TestIngestPipelineDense and TestIngestPipelineSparse:
+#     ELASTICSEARCH_URL   - cluster endpoint, e.g. https://my-cluster.es.io:443
+#     ELASTIC_API_KEY     - base64-encoded API key (id:secret)
+#
+# Optional (sensible defaults are used when not set):
+#
 #   For TestIngestPipelineDense:
-#     ELASTICSEARCH_URL              - cluster endpoint, e.g. https://my-cluster.es.io:443
-#     ELASTIC_API_KEY                - base64-encoded API key (id:secret)
-#     ELASTICSEARCH_DENSE_INFERENCE_ID   - deployed dense inference endpoint,
-#                                          e.g. ".multilingual-e5-small-elasticsearch"
-#     ELASTICSEARCH_DENSE_EMBEDDING_DIMS - output dimension of that model, e.g. "384"
+#     ELASTICSEARCH_DENSE_INFERENCE_ID   - deployed dense inference endpoint
+#                                          (default: ".multilingual-e5-small-elasticsearch")
+#     ELASTICSEARCH_DENSE_EMBEDDING_DIMS - output dimension of that model
+#                                          (default: "384")
 #
 #   For TestIngestPipelineSparse:
-#     ELASTICSEARCH_URL              - cluster endpoint
-#     ELASTIC_API_KEY                - base64-encoded API key (id:secret)
-#     ELASTICSEARCH_INFERENCE_ID     - deployed sparse inference endpoint,
-#                                      e.g. ".elser-2-elasticsearch"
+#     ELASTICSEARCH_INFERENCE_ID         - deployed sparse inference endpoint
+#                                          (default: ".elser-2-elastic", Elastic's hosted ELSER
+#                                          service which does not consume local ML node capacity)
 #
 # Example (bash):
 #   export ELASTICSEARCH_URL="https://my-cluster.es.io:443"
 #   export ELASTIC_API_KEY="<base64-id:secret>"
-#   export ELASTICSEARCH_DENSE_INFERENCE_ID=".multilingual-e5-small-elasticsearch"
-#   export ELASTICSEARCH_DENSE_EMBEDDING_DIMS="384"
-#   export ELASTICSEARCH_INFERENCE_ID=".elser-2-elasticsearch"
-#   pytest -m integration tests/test_ingest_pipeline.py
+#   pytest -m integration tests/test_cloud_ingest_pipeline.py
 
 import pytest
 from haystack.dataclasses import Document
