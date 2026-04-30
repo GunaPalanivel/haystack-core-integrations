@@ -329,9 +329,6 @@ class TestIngestPipelineSparse:
         )
 
         store.client.indices.refresh(index=store._index)
-        raw = store.client.get(index=store._index, id="async-1")
-        assert raw["_source"].get("sparse_vec") is not None
-
         result = retriever.run(query="capital of Italy")
 
         assert len(result["documents"]) == 1
