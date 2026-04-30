@@ -198,39 +198,24 @@ def ingest_pipeline_dense_document_store():
 def ingest_pipeline_sparse_document_store():
     """
     Document store fixture for ingest pipeline tests that generate ELSER sparse embeddings at index time.
-    """
 
+    Connects to a managed Elastic Cloud instance. Requires two environment variables:
+      - ELASTICSEARCH_URL    cluster endpoint, e.g. https://my-cluster.es.io:443
+      - ELASTIC_API_KEY      base64-encoded API key (id:secret)
 
-def hybrid_inference_document_store():
-    """
-    Document store fixture for ElasticsearchInferenceHybridRetriever integration tests.
+    Optional:
+      - ELASTICSEARCH_INFERENCE_ID  sparse inference endpoint to use
+                                    (default: ".elser-2-elastic")
 
-
-    Connects to a managed Elastic Cloud instance. Requires three environment variables:
-      - ELASTICSEARCH_URL
-            cluster endpoint, e.g. https://my-cluster.es.io:443
-      - ELASTIC_API_KEY
-            base64-encoded API key
-      - ELASTICSEARCH_INFERENCE_ID
-
-            deployed sparse inference endpoint, e.g. ".elser-2-elasticsearch"
-
-    The fixture creates a dedicated ingest pipeline and index, then tears both down after the test.
-
-            deployed inference endpoint, e.g. ".elser-2-elasticsearch"
-
-
-    Tests that use this fixture are skipped automatically when the variables are absent.
+    Tests that use this fixture are skipped automatically when the required variables are absent.
     """
     url = os.environ.get("ELASTICSEARCH_URL")
     api_key = os.environ.get("ELASTIC_API_KEY")
-
 
     if not all([url, api_key]):
         pytest.skip("Set ELASTICSEARCH_URL and ELASTIC_API_KEY to run ingest pipeline sparse tests")
 
     inference_id = os.environ.get("ELASTICSEARCH_INFERENCE_ID", ".elser-2-elastic")
-
     pipeline_id = f"test_sparse_ingest_{uuid.uuid4().hex}"
     index = f"test_sparse_ingest_{uuid.uuid4().hex}"
     sparse_field = "sparse_vec"
@@ -268,6 +253,21 @@ def hybrid_inference_document_store():
             if store._async_client is not None:
                 asyncio.run(store._async_client.close())
 
+
+@pytest.fixture
+def hybrid_inference_document_store():
+    """
+    Document store fixture for ElasticsearchInferenceHybridRetriever integration tests.
+
+    Connects to a managed Elastic Cloud instance. Requires three environment variables:
+      - ELASTICSEARCH_URL         cluster endpoint, e.g. https://my-cluster.es.io:443
+      - ELASTIC_API_KEY           base64-encoded API key (id:secret)
+      - ELASTICSEARCH_INFERENCE_ID  deployed sparse inference endpoint, e.g. ".elser-2-elasticsearch"
+
+    Tests that use this fixture are skipped automatically when the variables are absent.
+    """
+    url = os.environ.get("ELASTICSEARCH_URL")
+    api_key = os.environ.get("ELASTIC_API_KEY")
     inference_id = os.environ.get("ELASTICSEARCH_INFERENCE_ID")
 
     if not all([url, api_key, inference_id]):
