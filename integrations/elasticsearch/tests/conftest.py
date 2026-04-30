@@ -123,6 +123,142 @@ def inference_sparse_document_store():
 
 
 @pytest.fixture
+def ingest_pipeline_dense_document_store():
+    """
+    Document store fixture for ingest pipeline tests that generate dense embeddings at index time.
+
+    Connects to a managed Elastic Cloud instance. Requires four environment variables:
+      - ELASTICSEARCH_URL
+            cluster endpoint, e.g. https://my-cluster.es.io:443
+      - ELASTIC_API_KEY
+            base64-encoded API key
+      - ELASTICSEARCH_DENSE_INFERENCE_ID
+            deployed dense inference endpoint, e.g. ".multilingual-e5-small-elasticsearch"
+      - ELASTICSEARCH_DENSE_EMBEDDING_DIMS
+            output dimension of the model, e.g. "384"
+
+    The fixture creates a dedicated ingest pipeline and index, then tears both down after the test.
+    Tests that use this fixture are skipped automatically when the variables are absent.
+    """
+    url = os.environ.get("ELASTICSEARCH_URL")
+    api_key = os.environ.get("ELASTIC_API_KEY")
+    inference_id = os.environ.get("ELASTICSEARCH_DENSE_INFERENCE_ID")
+    dims_str = os.environ.get("ELASTICSEARCH_DENSE_EMBEDDING_DIMS")
+
+    if not all([url, api_key, inference_id, dims_str]):
+        pytest.skip(
+            "Set ELASTICSEARCH_URL, ELASTIC_API_KEY, ELASTICSEARCH_DENSE_INFERENCE_ID "
+            "and ELASTICSEARCH_DENSE_EMBEDDING_DIMS to run ingest pipeline dense tests"
+        )
+
+    dims = int(dims_str)
+    pipeline_id = f"test_dense_ingest_{uuid.uuid4().hex}"
+    index = f"test_dense_ingest_{uuid.uuid4().hex}"
+
+    raw_client = Elasticsearch(url, api_key=api_key)
+    store = None
+    try:
+        raw_client.ingest.put_pipeline(
+            id=pipeline_id,
+            processors=[
+                {
+                    "inference": {
+                        "model_id": inference_id,
+                        "input_output": [{"input_field": "content", "output_field": "embedding"}],
+                    }
+                }
+            ],
+        )
+        custom_mapping = {
+            "properties": {
+                "embedding": {"type": "dense_vector", "dims": dims, "index": True, "similarity": "cosine"},
+                "content": {"type": "text"},
+            }
+        }
+        store = ElasticsearchDocumentStore(
+            hosts=url,
+            api_key=Secret.from_token(api_key),
+            index=index,
+            ingest_pipeline=pipeline_id,
+            custom_mapping=custom_mapping,
+        )
+        store._ensure_initialized()
+        yield store, inference_id
+    finally:
+        raw_client.options(ignore_status=[400, 404]).ingest.delete_pipeline(id=pipeline_id)
+        raw_client.options(ignore_status=[400, 404]).indices.delete(index=index)
+        raw_client.close()
+        if store is not None:
+            if store._client is not None:
+                store.client.close()
+            if store._async_client is not None:
+                asyncio.run(store._async_client.close())
+
+
+@pytest.fixture
+def ingest_pipeline_sparse_document_store():
+    """
+    Document store fixture for ingest pipeline tests that generate ELSER sparse embeddings at index time.
+
+    Connects to a managed Elastic Cloud instance. Requires three environment variables:
+      - ELASTICSEARCH_URL
+            cluster endpoint, e.g. https://my-cluster.es.io:443
+      - ELASTIC_API_KEY
+            base64-encoded API key
+      - ELASTICSEARCH_INFERENCE_ID
+            deployed sparse inference endpoint, e.g. ".elser-2-elasticsearch"
+
+    The fixture creates a dedicated ingest pipeline and index, then tears both down after the test.
+    Tests that use this fixture are skipped automatically when the variables are absent.
+    """
+    url = os.environ.get("ELASTICSEARCH_URL")
+    api_key = os.environ.get("ELASTIC_API_KEY")
+    inference_id = os.environ.get("ELASTICSEARCH_INFERENCE_ID")
+
+    if not all([url, api_key, inference_id]):
+        pytest.skip(
+            "Set ELASTICSEARCH_URL, ELASTIC_API_KEY and ELASTICSEARCH_INFERENCE_ID to run ingest pipeline sparse tests"
+        )
+
+    pipeline_id = f"test_sparse_ingest_{uuid.uuid4().hex}"
+    index = f"test_sparse_ingest_{uuid.uuid4().hex}"
+    sparse_field = "sparse_vec"
+
+    raw_client = Elasticsearch(url, api_key=api_key)
+    store = None
+    try:
+        raw_client.ingest.put_pipeline(
+            id=pipeline_id,
+            processors=[
+                {
+                    "inference": {
+                        "model_id": inference_id,
+                        "input_output": [{"input_field": "content", "output_field": sparse_field}],
+                    }
+                }
+            ],
+        )
+        store = ElasticsearchDocumentStore(
+            hosts=url,
+            api_key=Secret.from_token(api_key),
+            index=index,
+            ingest_pipeline=pipeline_id,
+            sparse_vector_field=sparse_field,
+        )
+        store._ensure_initialized()
+        yield store, inference_id
+    finally:
+        raw_client.options(ignore_status=[400, 404]).ingest.delete_pipeline(id=pipeline_id)
+        raw_client.options(ignore_status=[400, 404]).indices.delete(index=index)
+        raw_client.close()
+        if store is not None:
+            if store._client is not None:
+                store.client.close()
+            if store._async_client is not None:
+                asyncio.run(store._async_client.close())
+
+
+@pytest.fixture
 def document_store_2():
     """
     Second document store fixture for runtime document store switching tests.

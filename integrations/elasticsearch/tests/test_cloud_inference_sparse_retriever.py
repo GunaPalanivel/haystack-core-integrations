@@ -1,6 +1,21 @@
 # SPDX-FileCopyrightText: 2023-present deepset GmbH <info@deepset.ai>
 #
 # SPDX-License-Identifier: Apache-2.0
+#
+# Integration tests in TestElasticsearchInferenceSparseRetrieverIntegration connect to a managed
+# Elastic Cloud cluster. They are skipped automatically when the following environment variables
+# are absent:
+#
+#   ELASTICSEARCH_URL          - cluster endpoint, e.g. https://my-cluster.es.io:443
+#   ELASTIC_API_KEY            - base64-encoded API key (id:secret)
+#   ELASTICSEARCH_INFERENCE_ID - deployed sparse inference endpoint,
+#                                e.g. ".elser-2-elasticsearch"
+#
+# Example (bash):
+#   export ELASTICSEARCH_URL="https://my-cluster.es.io:443"
+#   export ELASTIC_API_KEY="<base64-id:secret>"
+#   export ELASTICSEARCH_INFERENCE_ID=".elser-2-elasticsearch"
+#   pytest -m integration tests/test_inference_sparse_retriever.py
 
 import uuid
 from unittest.mock import Mock, patch

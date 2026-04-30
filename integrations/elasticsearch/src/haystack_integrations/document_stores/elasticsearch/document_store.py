@@ -124,10 +124,26 @@ class ElasticsearchDocumentStore:
             will be stored using the `sparse_vector` field type. When not set, any `sparse_embedding`
             data on Documents is silently dropped during writes.
         :param ingest_pipeline: If set, the id of an Elasticsearch ingest pipeline to run on each bulk
-            index or create (for example a pipeline with an inference processor). Leading and trailing
-            whitespace is stripped. When not set, the default Elasticsearch indexing path is used.
-            Ensure index mappings and pipeline output fields match any `embedding` or sparse fields
-            you send from Haystack.
+            index or create. This is the recommended way to generate embeddings at index time using
+            Elasticsearch's inference processors (e.g. ELSER or a dense model) without running a
+            Haystack embedder component. Leading and trailing whitespace is stripped.
+
+            Requirements when using inference processors:
+
+            - Configure the processor with ``input_output`` so the embedding is written directly
+              to the right field: ``output_field`` must match ``"embedding"`` (for dense retrieval)
+              or the value of ``sparse_vector_field`` (for ELSER / sparse retrieval). The ES default
+              target ``ml.inference.<tag>`` will not be found by Haystack's retrievers.
+            - Do **not** also run a Haystack ``DocumentEmbedder`` upstream. If documents arrive with
+              a pre-computed ``embedding``, the pipeline will overwrite it with its own model's
+              vectors, causing a silent mismatch between stored and query embeddings at retrieval time.
+            - If you supply ``custom_mapping``, include the output field with the correct type
+              (``dense_vector`` or ``sparse_vector``).
+
+            Sparse embedding note: Elasticsearch does not store ``sparse_vector`` data generated
+            by inference pipelines in ``_source``; it goes only into the inverted index. Haystack
+            works around this by requesting the field via the ES ``fields`` API on every search so
+            that ``Document.sparse_embedding`` is populated correctly on returned documents.
         :param **kwargs: Optional arguments that `Elasticsearch` takes.
         """
         self._hosts = hosts
@@ -357,6 +373,12 @@ class ElasticsearchDocumentStore:
         if top_k is None and "knn" in kwargs and "k" in kwargs["knn"]:
             top_k = kwargs["knn"]["k"]
 
+        # sparse_vector data written by an ingest pipeline is not stored in _source,
+        # but is retrievable via the fields API. Request it explicitly so that
+        # _deserialize_document can populate Document.sparse_embedding correctly.
+        if self._sparse_vector_field and "fields" not in kwargs:
+            kwargs["fields"] = [self._sparse_vector_field]
+
         documents: list[Document] = []
         from_ = 0
         # Handle pagination
@@ -383,6 +405,12 @@ class ElasticsearchDocumentStore:
         top_k = kwargs.get("size")
         if top_k is None and "knn" in kwargs and "k" in kwargs["knn"]:
             top_k = kwargs["knn"]["k"]
+
+        # sparse_vector data written by an ingest pipeline is not stored in _source,
+        # but is retrievable via the fields API. Request it explicitly so that
+        # _deserialize_document can populate Document.sparse_embedding correctly.
+        if self._sparse_vector_field and "fields" not in kwargs:
+            kwargs["fields"] = [self._sparse_vector_field]
 
         documents: list[Document] = []
         from_ = 0
@@ -452,20 +480,32 @@ class ElasticsearchDocumentStore:
             data["metadata"]["highlighted"] = hit["highlight"]
         data["score"] = hit["_score"]
 
-        if self._sparse_vector_field and self._sparse_vector_field in data:
-            es_sparse = data.pop(self._sparse_vector_field)
-            try:
-                # Haystack SparseEmbedding requires integer indices. Documents indexed via
-                # Haystack use numeric string keys ("0", "1", ...). Documents indexed by an
-                # ES inference pipeline (e.g. ELSER) use token-string keys ("berlin", ...) which
-                # cannot be mapped to integer indices, so sparse_embedding is left unset.
-                sorted_items = sorted(es_sparse.items(), key=lambda x: int(x[0]))
-                data["sparse_embedding"] = {
-                    "indices": [int(k) for k, _ in sorted_items],
-                    "values": [v for _, v in sorted_items],
-                }
-            except ValueError:
-                pass
+        if self._sparse_vector_field:
+            sparse_field = self._sparse_vector_field
+            # Prefer the fields API response over _source: sparse_vector data written by an
+            # ingest pipeline (e.g. ELSER) is indexed but not stored in _source. The fields
+            # API returns it when requested by _search_documents / _search_documents_async.
+            # For documents indexed directly by Haystack the data is in _source as usual.
+            fields_hit = hit.get("fields", {})
+            if sparse_field in fields_hit:
+                es_sparse = fields_hit[sparse_field][0]  # fields API wraps values in a list
+                data.pop(sparse_field, None)
+            else:
+                es_sparse = data.pop(sparse_field, None)
+
+            if es_sparse:
+                try:
+                    # Haystack SparseEmbedding requires integer indices. Documents indexed via
+                    # Haystack use numeric string keys ("0", "1", ...). Documents indexed by an
+                    # ES inference pipeline (e.g. ELSER) use token-string keys ("berlin", ...) which
+                    # cannot be mapped to integer indices, so sparse_embedding is left unset.
+                    sorted_items = sorted(es_sparse.items(), key=lambda x: int(x[0]))
+                    data["sparse_embedding"] = {
+                        "indices": [int(k) for k, _ in sorted_items],
+                        "values": [v for _, v in sorted_items],
+                    }
+                except ValueError:
+                    pass
 
         return Document.from_dict(data)
 
@@ -638,6 +678,14 @@ class ElasticsearchDocumentStore:
         elasticsearch_actions = []
         for doc in documents:
             doc_dict = doc.to_dict()
+            # ES rejects null for strongly-typed fields (dense_vector, sparse_vector) when the
+            # index mapping carries explicit configuration such as `dims`. A missing field is
+            # always valid — it lets ingest pipelines populate the value at index time, and for
+            # ordinary writes it simply means no value is stored. We only strip the known
+            # Haystack document fields here; metadata values are left untouched intentionally.
+            for field in ("embedding", "blob", "score"):
+                if doc_dict.get(field) is None:
+                    doc_dict.pop(field, None)
             self._handle_sparse_embedding(doc_dict, doc.id)
             elasticsearch_actions.append(
                 {
@@ -720,6 +768,14 @@ class ElasticsearchDocumentStore:
         actions = []
         for doc in documents:
             doc_dict = doc.to_dict()
+            # ES rejects null for strongly-typed fields (dense_vector, sparse_vector) when the
+            # index mapping carries explicit configuration such as `dims`. A missing field is
+            # always valid — it lets ingest pipelines populate the value at index time, and for
+            # ordinary writes it simply means no value is stored. We only strip the known
+            # Haystack document fields here; metadata values are left untouched intentionally.
+            for field in ("embedding", "blob", "score"):
+                if doc_dict.get(field) is None:
+                    doc_dict.pop(field, None)
             self._handle_sparse_embedding(doc_dict, doc.id)
 
             action = {
