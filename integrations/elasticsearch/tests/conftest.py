@@ -198,6 +198,13 @@ def ingest_pipeline_dense_document_store():
 def ingest_pipeline_sparse_document_store():
     """
     Document store fixture for ingest pipeline tests that generate ELSER sparse embeddings at index time.
+    """
+
+
+def hybrid_inference_document_store():
+    """
+    Document store fixture for ElasticsearchInferenceHybridRetriever integration tests.
+
 
     Connects to a managed Elastic Cloud instance. Requires three environment variables:
       - ELASTICSEARCH_URL
@@ -205,13 +212,19 @@ def ingest_pipeline_sparse_document_store():
       - ELASTIC_API_KEY
             base64-encoded API key
       - ELASTICSEARCH_INFERENCE_ID
+
             deployed sparse inference endpoint, e.g. ".elser-2-elasticsearch"
 
     The fixture creates a dedicated ingest pipeline and index, then tears both down after the test.
+
+            deployed inference endpoint, e.g. ".elser-2-elasticsearch"
+
+
     Tests that use this fixture are skipped automatically when the variables are absent.
     """
     url = os.environ.get("ELASTICSEARCH_URL")
     api_key = os.environ.get("ELASTIC_API_KEY")
+
 
     if not all([url, api_key]):
         pytest.skip("Set ELASTICSEARCH_URL and ELASTIC_API_KEY to run ingest pipeline sparse tests")
@@ -254,6 +267,28 @@ def ingest_pipeline_sparse_document_store():
                 store.client.close()
             if store._async_client is not None:
                 asyncio.run(store._async_client.close())
+
+    inference_id = os.environ.get("ELASTICSEARCH_INFERENCE_ID")
+
+    if not all([url, api_key, inference_id]):
+        pytest.skip("Set ELASTICSEARCH_URL, ELASTIC_API_KEY and ELASTICSEARCH_INFERENCE_ID to run inference tests")
+
+    index = f"test_hybrid_inference_{uuid.uuid4().hex}"
+    store = ElasticsearchDocumentStore(
+        hosts=url,
+        api_key=Secret.from_token(api_key),
+        index=index,
+        sparse_vector_field="sparse_vec",
+    )
+    try:
+        store._ensure_initialized()
+        yield store, inference_id
+    finally:
+        if store._client is not None:
+            store.client.options(ignore_status=[400, 404]).indices.delete(index=index)
+            store.client.close()
+        if store._async_client is not None:
+            asyncio.run(store._async_client.close())
 
 
 @pytest.fixture
