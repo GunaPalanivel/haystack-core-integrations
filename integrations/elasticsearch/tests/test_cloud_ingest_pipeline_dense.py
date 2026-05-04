@@ -1,6 +1,82 @@
 # SPDX-FileCopyrightText: 2023-present deepset GmbH <info@deepset.ai>
 #
 # SPDX-License-Identifier: Apache-2.0
+#
+# Integration tests in TestElasticSearchIngestPipelineDense connect to a managed
+# Elastic Cloud cluster. They are skipped automatically when the required environment
+# variables are absent.
+#
+# --- Account & project setup -------------------------------------------------
+#
+#   1. Sign up for a free trial at https://cloud.elastic.co/signup (no credit card needed).
+#   2. Go to cloud.elastic.co -> Create project -> Elasticsearch (Serverless).
+#   3. Choose a region close to you, give the project a name, and click Create.
+#   4. Once the project is ready (~1-2 min), collect:
+#        Endpoint URL  -> listed as "Elasticsearch endpoint" in the project Overview
+#        API key       -> Project Settings -> API Keys -> Create API key
+#
+# --- Inference endpoint -------------------------------------------------------
+#
+#   These tests use a dense embedding model to generate float vectors at index time
+#   via an Elasticsearch ingest pipeline.  Haystack writes raw text; the pipeline
+#   fills the embedding field before the document is committed to the index.
+#
+#   Two service types exist for inference endpoints:
+#
+#     service: elastic       - hosted externally by Elastic, no ML node capacity needed,
+#                              works on Serverless free trial out of the box
+#     service: elasticsearch - runs on the cluster's own ML nodes; requires available
+#                              ML memory (may fail on a free trial with limited capacity)
+#
+#   The default ELASTICSEARCH_DENSE_INFERENCE_ID is ".multilingual-e5-small-elasticsearch"
+#   (service: elasticsearch, 384 dims). It requires ML node memory and will fail on a
+#   free-trial Serverless cluster with insufficient capacity.
+#
+#   To list all inference endpoints available on your cluster:
+#
+#     curl -s \
+#       -H "Authorization: ApiKey <your-key>" \
+#       "https://<your-cluster-endpoint>/_inference" | jq '.[].inference_id'
+#
+#   The following "service: elastic" text_embedding endpoints are available out of the
+#   box on Serverless free trial (no ML node capacity needed):
+#
+#     .jina-embeddings-v3               (1024 dims)  - GA, multilingual
+#     .jina-embeddings-v5-text-nano     (768 dims)   - GA, multilingual
+#     .jina-embeddings-v5-text-small    (1024 dims)  - GA, multilingual
+#     .google-gemini-embedding-001      (3072 dims)  - GA, multilingual
+#     .openai-text-embedding-3-small    (1536 dims)  - GA, multilingual
+#     .openai-text-embedding-3-large    (3072 dims)  - GA, multilingual
+#
+# --- Environment variables ----------------------------------------------------
+#
+#   Required:
+#     ELASTICSEARCH_URL                  - cluster endpoint
+#                                          e.g. https://my-project.es.<region>.aws.elastic.cloud
+#     ELASTIC_API_KEY                    - API key created in the project settings
+#
+#   Optional:
+#     ELASTICSEARCH_DENSE_INFERENCE_ID   - dense inference endpoint to use
+#                                          default: ".multilingual-e5-small-elasticsearch"
+#                                          Serverless free trial: use a "service: elastic" endpoint,
+#                                          e.g. ".jina-embeddings-v3"
+#     ELASTICSEARCH_DENSE_EMBEDDING_DIMS - output dimensions of the chosen model
+#                                          default: "384" (matches .multilingual-e5-small-elasticsearch)
+#                                          e.g. "1024" for .jina-embeddings-v3
+#
+# --- Running the tests --------------------------------------------------------
+#
+#   Serverless free trial (Jina embeddings, no ML nodes needed):
+#     ELASTICSEARCH_URL="https://my-project.es.<region>.aws.elastic.cloud" \
+#     ELASTIC_API_KEY="<your-key>" \
+#     ELASTICSEARCH_DENSE_INFERENCE_ID=".jina-embeddings-v3" \
+#     ELASTICSEARCH_DENSE_EMBEDDING_DIMS="1024" \
+#     pytest -m integration tests/test_cloud_ingest_pipeline_dense.py
+#
+#   Stateful ESS cluster (ML nodes available, default multilingual-e5-small):
+#     ELASTICSEARCH_URL="https://my-cluster.es.io:443" \
+#     ELASTIC_API_KEY="<your-key>" \
+#     pytest -m integration tests/test_cloud_ingest_pipeline_dense.py
 
 import pytest
 from haystack.dataclasses import Document

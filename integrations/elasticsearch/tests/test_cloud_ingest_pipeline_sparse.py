@@ -1,6 +1,64 @@
 # SPDX-FileCopyrightText: 2023-present deepset GmbH <info@deepset.ai>
 #
 # SPDX-License-Identifier: Apache-2.0
+#
+# Integration tests in TestElasticSearchIngestPipelineSparse connect to a managed
+# Elastic Cloud cluster. They are skipped automatically when the required environment
+# variables are absent.
+#
+# --- Account & project setup -------------------------------------------------
+#
+#   1. Sign up for a free trial at https://cloud.elastic.co/signup (no credit card needed).
+#   2. Go to cloud.elastic.co -> Create project -> Elasticsearch (Serverless).
+#   3. Choose a region close to you, give the project a name, and click Create.
+#   4. Once the project is ready (~1-2 min), collect:
+#        Endpoint URL  -> listed as "Elasticsearch endpoint" in the project Overview
+#        API key       -> Project Settings -> API Keys -> Create API key
+#
+# --- Inference endpoint -------------------------------------------------------
+#
+#   These tests use ELSER (Elastic Learned Sparse Encoder) to generate sparse
+#   token-weight maps at index time via an Elasticsearch ingest pipeline.  Haystack
+#   writes raw text documents; the pipeline fills the sparse_vec field before the
+#   document is committed to the index.
+#
+#   The inference endpoint to use depends on your cluster deployment type:
+#
+#     Serverless project   -> .elser-2-elasticsearch  (built-in, no deployment needed)
+#     Stateful ESS cluster -> .elser-2-elastic         (Elastic-hosted ELSER, no ML node capacity consumed)
+#
+#   The default is ".elser-2-elastic". Override with ELASTICSEARCH_INFERENCE_ID.
+#
+#   To list all inference endpoints available on your cluster:
+#
+#     curl -s \
+#       -H "Authorization: ApiKey <your-key>" \
+#       "https://<your-cluster-endpoint>/_inference" | jq '.[].inference_id'
+#
+# --- Environment variables ----------------------------------------------------
+#
+#   Required:
+#     ELASTICSEARCH_URL          - cluster endpoint
+#                                  e.g. https://my-project.es.<region>.aws.elastic.cloud
+#     ELASTIC_API_KEY            - API key created in the project settings
+#
+#   Optional:
+#     ELASTICSEARCH_INFERENCE_ID - sparse inference endpoint to use
+#                                  default: ".elser-2-elastic"  (stateful ESS)
+#                                  Serverless: set to ".elser-2-elasticsearch"
+#
+# --- Running the tests --------------------------------------------------------
+#
+#   Serverless project:
+#     ELASTICSEARCH_URL="https://my-project.es.<region>.aws.elastic.cloud" \
+#     ELASTIC_API_KEY="<your-key>" \
+#     ELASTICSEARCH_INFERENCE_ID=".elser-2-elasticsearch" \
+#     pytest -m integration tests/test_cloud_ingest_pipeline_sparse.py
+#
+#   Stateful ESS cluster (uses the default inference endpoint):
+#     ELASTICSEARCH_URL="https://my-cluster.es.io:443" \
+#     ELASTIC_API_KEY="<your-key>" \
+#     pytest -m integration tests/test_cloud_ingest_pipeline_sparse.py
 
 import pytest
 from haystack.dataclasses import Document

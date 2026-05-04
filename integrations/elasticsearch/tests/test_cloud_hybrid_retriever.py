@@ -6,27 +6,33 @@
 # Elastic Cloud cluster. They are skipped automatically when the required environment
 # variables are absent.
 #
-# ─── Account & project setup ─────────────────────────────────────────────────────
+# --- Account & project setup -------------------------------------------------
 #
 #   1. Sign up for a free trial at https://cloud.elastic.co/signup (no credit card needed).
-#   2. Go to cloud.elastic.co → Create project → Elasticsearch (Serverless).
+#   2. Go to cloud.elastic.co -> Create project -> Elasticsearch (Serverless).
 #   3. Choose a region close to you, give the project a name, and click Create.
 #   4. Once the project is ready (~1-2 min), collect:
-#        Endpoint URL  → listed as "Elasticsearch endpoint" in the project Overview
-#        API key       → Project Settings → API Keys → Create API key
+#        Endpoint URL  -> listed as "Elasticsearch endpoint" in the project Overview
+#        API key       -> Project Settings -> API Keys -> Create API key
 #
-# ─── Inference endpoint ──────────────────────────────────────────────────────────
+# --- Inference endpoint -------------------------------------------------------
 #
 #   These tests combine ELSER sparse retrieval with BM25 full-text search via
 #   server-side Reciprocal Rank Fusion (single Elasticsearch request).
-#   ELASTICSEARCH_INFERENCE_ID is required — there is no default.
+#   ELASTICSEARCH_INFERENCE_ID is required - there is no default.
 #
 #   The inference endpoint to use depends on your cluster deployment type:
 #
-#     Serverless project   → .elser-2-elasticsearch  (built-in, no deployment needed)
-#     Stateful ESS cluster → .elser-2-elastic         (Elastic-hosted ELSER, no ML node capacity consumed)
+#     Serverless project   -> .elser-2-elasticsearch  (built-in, no deployment needed)
+#     Stateful ESS cluster -> .elser-2-elastic         (Elastic-hosted ELSER, no ML node capacity consumed)
 #
-# ─── Environment variables ───────────────────────────────────────────────────────
+#   To list all inference endpoints available on your cluster:
+#
+#     curl -s \
+#       -H "Authorization: ApiKey <your-key>" \
+#       "https://<your-cluster-endpoint>/_inference" | jq '.[].inference_id'
+#
+# --- Environment variables ----------------------------------------------------
 #
 #   Required:
 #     ELASTICSEARCH_URL          - cluster endpoint
@@ -34,7 +40,7 @@
 #     ELASTIC_API_KEY            - API key created in the project settings
 #     ELASTICSEARCH_INFERENCE_ID - sparse inference endpoint (no default, must be set explicitly)
 #
-# ─── Running the tests ───────────────────────────────────────────────────────────
+# --- Running the tests --------------------------------------------------------
 #
 #   Serverless project:
 #     ELASTICSEARCH_URL="https://my-project.es.<region>.aws.elastic.cloud" \
