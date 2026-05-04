@@ -48,6 +48,7 @@ serialised = {
                 "api_key_id": {"type": "env_var", "env_vars": ["ELASTIC_API_KEY_ID"], "strict": False},
                 "embedding_similarity_function": "cosine",
                 "sparse_vector_field": None,
+                "ingest_pipeline": None,
             },
         },
         "inference_id": ".elser_model_2",
@@ -248,9 +249,7 @@ class TestElasticsearchInferenceHybridRetrieverIntegration:
 
     def test_retrieval_returns_documents(self, hybrid_inference_document_store):
         store, inference_id = hybrid_inference_document_store
-        retriever = ElasticsearchInferenceHybridRetriever(
-            document_store=store, inference_id=inference_id, top_k=2
-        )
+        retriever = ElasticsearchInferenceHybridRetriever(document_store=store, inference_id=inference_id, top_k=2)
         _index_documents_with_inference(
             store.client,
             store._index,
@@ -269,9 +268,7 @@ class TestElasticsearchInferenceHybridRetrieverIntegration:
 
     def test_most_relevant_document_ranks_first(self, hybrid_inference_document_store):
         store, inference_id = hybrid_inference_document_store
-        retriever = ElasticsearchInferenceHybridRetriever(
-            document_store=store, inference_id=inference_id, top_k=3
-        )
+        retriever = ElasticsearchInferenceHybridRetriever(document_store=store, inference_id=inference_id, top_k=3)
         _index_documents_with_inference(
             store.client,
             store._index,
@@ -290,9 +287,7 @@ class TestElasticsearchInferenceHybridRetrieverIntegration:
 
     def test_respects_top_k(self, hybrid_inference_document_store):
         store, inference_id = hybrid_inference_document_store
-        retriever = ElasticsearchInferenceHybridRetriever(
-            document_store=store, inference_id=inference_id, top_k=1
-        )
+        retriever = ElasticsearchInferenceHybridRetriever(document_store=store, inference_id=inference_id, top_k=1)
         _index_documents_with_inference(
             store.client,
             store._index,
@@ -309,9 +304,7 @@ class TestElasticsearchInferenceHybridRetrieverIntegration:
 
     def test_filter_applied_to_both_retrievers(self, hybrid_inference_document_store):
         store, inference_id = hybrid_inference_document_store
-        retriever = ElasticsearchInferenceHybridRetriever(
-            document_store=store, inference_id=inference_id, top_k=5
-        )
+        retriever = ElasticsearchInferenceHybridRetriever(document_store=store, inference_id=inference_id, top_k=5)
         _index_documents_with_inference(
             store.client,
             store._index,
@@ -338,9 +331,7 @@ class TestElasticsearchInferenceHybridRetrieverIntegration:
             inference_id,
             [{"id": "1", "content": "The Eiffel Tower is in Paris."}],
         )
-        retriever = ElasticsearchInferenceHybridRetriever(
-            document_store=store, inference_id=inference_id, top_k=1
-        )
+        retriever = ElasticsearchInferenceHybridRetriever(document_store=store, inference_id=inference_id, top_k=1)
 
         original_search = store.client.search
         call_count = 0
