@@ -373,11 +373,15 @@ class ElasticsearchDocumentStore:
         if top_k is None and "knn" in kwargs and "k" in kwargs["knn"]:
             top_k = kwargs["knn"]["k"]
 
-        # sparse_vector data written by an ingest pipeline is not stored in _source,
-        # but is retrievable via the fields API. Request it explicitly so that
-        # _deserialize_document can populate Document.sparse_embedding correctly.
-        if self._sparse_vector_field and "fields" not in kwargs:
-            kwargs["fields"] = [self._sparse_vector_field]
+        # When an ingest pipeline is configured, sparse_vector data is not stored in _source
+        # (ES indexes it but omits it from the stored document). Request it via the fields API
+        # so that _deserialize_document can populate Document.sparse_embedding correctly.
+        # Merge rather than replace: a caller may already pass fields=["title", ...] for a custom
+        # projection — dropping their list would silently hide sparse embeddings on those docs.
+        if self._ingest_pipeline and self._sparse_vector_field:
+            existing = list(kwargs.get("fields") or [])
+            if self._sparse_vector_field not in existing:
+                kwargs["fields"] = [*existing, self._sparse_vector_field]
 
         documents: list[Document] = []
         from_ = 0
@@ -406,11 +410,15 @@ class ElasticsearchDocumentStore:
         if top_k is None and "knn" in kwargs and "k" in kwargs["knn"]:
             top_k = kwargs["knn"]["k"]
 
-        # sparse_vector data written by an ingest pipeline is not stored in _source,
-        # but is retrievable via the fields API. Request it explicitly so that
-        # _deserialize_document can populate Document.sparse_embedding correctly.
-        if self._sparse_vector_field and "fields" not in kwargs:
-            kwargs["fields"] = [self._sparse_vector_field]
+        # When an ingest pipeline is configured, sparse_vector data is not stored in _source
+        # (ES indexes it but omits it from the stored document). Request it via the fields API
+        # so that _deserialize_document can populate Document.sparse_embedding correctly.
+        # Merge rather than replace: a caller may already pass fields=["title", ...] for a custom
+        # projection — dropping their list would silently hide sparse embeddings on those docs.
+        if self._ingest_pipeline and self._sparse_vector_field:
+            existing = list(kwargs.get("fields") or [])
+            if self._sparse_vector_field not in existing:
+                kwargs["fields"] = [*existing, self._sparse_vector_field]
 
         documents: list[Document] = []
         from_ = 0
@@ -680,10 +688,11 @@ class ElasticsearchDocumentStore:
         for doc in documents:
             doc_dict = doc.to_dict()
             # ES rejects null for strongly-typed fields (dense_vector, sparse_vector) when the
-            # index mapping carries explicit configuration such as `dims`. A missing field is
-            # always valid — it lets ingest pipelines populate the value at index time, and for
-            # ordinary writes it simply means no value is stored. We only strip the known
-            # Haystack document fields here; metadata values are left untouched intentionally.
+            # index mapping carries explicit configuration such as `dims`. This applies to all
+            # writes, not just ingest pipeline writes: any index with a custom_mapping that
+            # declares explicit field types will reject null values. A missing field is always
+            # valid — ES treats it as "no value stored". We only strip the known Haystack
+            # document fields here; metadata values are left untouched intentionally.
             for field in ("embedding", "blob", "score"):
                 if doc_dict.get(field) is None:
                     doc_dict.pop(field, None)
@@ -770,10 +779,11 @@ class ElasticsearchDocumentStore:
         for doc in documents:
             doc_dict = doc.to_dict()
             # ES rejects null for strongly-typed fields (dense_vector, sparse_vector) when the
-            # index mapping carries explicit configuration such as `dims`. A missing field is
-            # always valid — it lets ingest pipelines populate the value at index time, and for
-            # ordinary writes it simply means no value is stored. We only strip the known
-            # Haystack document fields here; metadata values are left untouched intentionally.
+            # index mapping carries explicit configuration such as `dims`. This applies to all
+            # writes, not just ingest pipeline writes: any index with a custom_mapping that
+            # declares explicit field types will reject null values. A missing field is always
+            # valid — ES treats it as "no value stored". We only strip the known Haystack
+            # document fields here; metadata values are left untouched intentionally.
             for field in ("embedding", "blob", "score"):
                 if doc_dict.get(field) is None:
                     doc_dict.pop(field, None)

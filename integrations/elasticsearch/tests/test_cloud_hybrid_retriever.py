@@ -241,7 +241,7 @@ def _index_documents_with_inference(client, index: str, inference_id: str, docs:
 
 
 @pytest.mark.integration
-class TestElasticsearchInferenceHybridRetrieverIntegration:
+class TestElasticsearchInferenceHybridRetriever:
     """
     End-to-end tests against a real Elastic Cloud cluster with a deployed ELSER endpoint.
     Run with: pytest -m integration

@@ -45,7 +45,7 @@ def _get_dense_query_embedding(client, inference_id: str, text: str) -> list[flo
 
 
 @pytest.mark.integration
-class TestIngestPipelineDense:
+class TestElasticSearchIngestPipelineDense:
     """
     End-to-end integration tests for ElasticsearchDocumentStore with an ingest pipeline
     that generates dense embeddings at index time.
@@ -192,7 +192,7 @@ class TestIngestPipelineDense:
 
 
 @pytest.mark.integration
-class TestIngestPipelineSparse:
+class TestElasticSearchIngestPipelineSparse:
     """
     End-to-end integration tests for ElasticsearchDocumentStore with an ingest pipeline
     that generates ELSER sparse embeddings at index time.

@@ -304,7 +304,7 @@ def _index_documents_with_inference(client, index: str, inference_id: str, docum
 
 
 @pytest.mark.integration
-class TestElasticsearchInferenceSparseRetrieverIntegration:
+class TestElasticsearchInferenceSparseRetriever:
     """
     End-to-end integration tests for ElasticsearchInferenceSparseRetriever.
 

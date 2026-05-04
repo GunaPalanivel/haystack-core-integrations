@@ -280,6 +280,13 @@ def test_write_documents_bulk_passes_pipeline_when_configured(mock_es, _mock_asy
     mock_bulk.assert_called_once()
     assert mock_bulk.call_args.kwargs["pipeline"] == "my-ingest"
 
+    call_actions = mock_bulk.call_args.kwargs["actions"]
+    assert len(call_actions) == 1
+    source = call_actions[0]["_source"]
+    assert "embedding" not in source
+    assert "blob" not in source
+    assert "score" not in source
+
 
 @patch("haystack_integrations.document_stores.elasticsearch.document_store.helpers.bulk")
 @patch("haystack_integrations.document_stores.elasticsearch.document_store.AsyncElasticsearch")
@@ -323,6 +330,28 @@ async def test_write_documents_async_bulk_passes_pipeline_when_configured(mock_e
 
     mock_async_bulk.assert_called_once()
     assert mock_async_bulk.call_args.kwargs["pipeline"] == "pipe-async"
+
+
+@pytest.mark.asyncio
+@patch("haystack_integrations.document_stores.elasticsearch.document_store.helpers.async_bulk")
+@patch("haystack_integrations.document_stores.elasticsearch.document_store.AsyncElasticsearch")
+@patch("haystack_integrations.document_stores.elasticsearch.document_store.Elasticsearch")
+async def test_write_documents_async_bulk_omits_pipeline_when_not_configured(mock_es, mock_async_es_cls, mock_async_bulk):
+    mock_client = Mock()
+    mock_client.info.return_value = {"version": {"number": "8.0.0"}}
+    mock_client.indices.exists.return_value = True
+    mock_es.return_value = mock_client
+
+    mock_async_es_cls.return_value = AsyncMock()
+
+    mock_async_bulk.return_value = (1, [])
+
+    store = ElasticsearchDocumentStore(hosts="http://localhost:9200", index="idx_async_no_pipeline")
+    _ = store.client
+    await store.write_documents_async([Document(id="1", content="a")])
+
+    mock_async_bulk.assert_called_once()
+    assert "pipeline" not in mock_async_bulk.call_args.kwargs
 
 
 def test_api_key_validation_only_api_key():
