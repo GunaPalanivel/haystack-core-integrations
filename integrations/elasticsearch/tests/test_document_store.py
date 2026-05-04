@@ -336,7 +336,9 @@ async def test_write_documents_async_bulk_passes_pipeline_when_configured(mock_e
 @patch("haystack_integrations.document_stores.elasticsearch.document_store.helpers.async_bulk")
 @patch("haystack_integrations.document_stores.elasticsearch.document_store.AsyncElasticsearch")
 @patch("haystack_integrations.document_stores.elasticsearch.document_store.Elasticsearch")
-async def test_write_documents_async_bulk_omits_pipeline_when_not_configured(mock_es, mock_async_es_cls, mock_async_bulk):
+async def test_write_documents_async_bulk_omits_pipeline_when_not_configured(
+    mock_es, mock_async_es_cls, mock_async_bulk
+):
     mock_client = Mock()
     mock_client.info.return_value = {"version": {"number": "8.0.0"}}
     mock_client.indices.exists.return_value = True
